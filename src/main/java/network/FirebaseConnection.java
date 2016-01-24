@@ -18,4 +18,14 @@ public class FirebaseConnection implements NetworkConnection {
     public void listenForMessages(MessageListener listener) {
 
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        return super.equals(obj);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
 }

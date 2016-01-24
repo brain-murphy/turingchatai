@@ -5,4 +5,6 @@ package interfaces;
  */
 public interface MessageListener {
     void onMessageReceived(String message);
+    boolean equals(Object obj);
+    int hashCode();
 }
