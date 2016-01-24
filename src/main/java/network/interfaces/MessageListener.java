@@ -1,4 +1,4 @@
-package interfaces;
+package network.interfaces;
 
 /**
  * Created by brian on 1/24/16.
