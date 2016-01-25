@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.*;
 /**
  * Created by brian on 1/24/16.
  */
-public class FirebaseDataConnection implements DataConnectionManager {
+public class FirebaseDataConnection implements DataConnection {
 
     public static final String FIREBASE_URL = "https://turingchat.firebaseio.com/";
 
