@@ -3,10 +3,9 @@ package network.interfaces;
 /**
  * Created by brian on 1/24/16.
  */
-public interface NetworkConnection {
+public interface ConversationManager {
 
-    void sendMessage(String message, MessageListener listener);
+    void sendMessage(String message);
 
     void listenForMessages(MessageListener listener);
-
 }

@@ -7,14 +7,14 @@ import com.firebase.client.*;
  */
 class GetPartnerFromWaitingListEventListener implements ChildEventListener {
 
-    interface PartnerFoundListener {
+    interface PartnerFoundOnWaitingList {
         void onPartnerFound(String parterUid, GetPartnerFromWaitingListEventListener toRemove);
     }
 
 
-    private PartnerFoundListener listener;
+    private PartnerFoundOnWaitingList listener;
 
-    public GetPartnerFromWaitingListEventListener(PartnerFoundListener pListener) {
+    public GetPartnerFromWaitingListEventListener(PartnerFoundOnWaitingList pListener) {
         listener = pListener;
     }
 
