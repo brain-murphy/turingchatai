@@ -20,8 +20,10 @@ class GetPartnerFromWaitingListEventListener implements ChildEventListener {
 
     @Override
     public void onChildAdded(DataSnapshot dataSnapshot, String previousChildKey) {
-        String partnerUid = dataSnapshot.getKey();
-        listener.onPartnerFound(partnerUid, this);
+        if (dataSnapshot.getValue().equals(false)) {
+            String partnerUid = dataSnapshot.getKey();
+            listener.onPartnerFound(partnerUid, this);
+        }
     }
 
     @Override
