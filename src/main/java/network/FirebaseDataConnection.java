@@ -7,6 +7,7 @@ import network.model.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.function.*;
 
 /**
  * Created by brian on 1/24/16.
@@ -19,6 +20,7 @@ public class FirebaseDataConnection implements DataConnection {
     private Stack<ChatStartedListener> chatStartedListeners;
 
     private Firebase waitingListRef;
+    private FirebaseArray waitingListArray;
     private Firebase chatsRef;
 
     private FirebaseAuth auth;
@@ -32,40 +34,62 @@ public class FirebaseDataConnection implements DataConnection {
     }
 
     @Override
-    public void lookForPartner(ChatStartedListener listener) {
-        chatStartedListeners.push(listener);
+    public void lookForPartner(ChatStartedListener chatStartedListener) {
+        chatStartedListeners.push(chatStartedListener);
 
-        String partnerUid = getPartnerFromWaitingList();
+        getPartnerFromWaitingList(this::startChatAsync);
+    }
+
+    private void startChatAsync(String partnerUid) {
 
         Firebase newChatFirebaseRef = pushNewChatToFirebase();
+        Firebase partnersRef = newChatFirebaseRef.child("partners");
 
-        listenForPartnerJoiningChat(newChatFirebaseRef);
+        PartnerJoiningChatListener joiningChatListener = new PartnerJoiningChatListener((partnersRecordUid, toRemove) -> {
+            if (!partnersRecordUid.equals(auth.getUid())) {
+                partnersRef.removeEventListener(toRemove);
 
-        giveChatIdToPartner(newChatFirebaseRef.getKey(), partnerUid);
+                chatStartedListeners.pop().onPartnerFound(new FirebaseConversationManager(newChatFirebaseRef));
+            }
+        });
+
+        partnersRef.addChildEventListener(joiningChatListener);
+
+        giveChatIdToPartner(newChatFirebaseRef.getKey(), partnerUid, (nullParam) -> {
+            System.out.println("Partner joined another chat before chat uid could be written.");
+
+            partnersRef.removeEventListener(joiningChatListener);
+
+            restartLookingForPartner(newChatFirebaseRef);
+
+            return null;
+        });
+
     }
 
     private void setUpFirebase() {
         Firebase.setDefaultConfig(new Config());
 
         waitingListRef = new Firebase(FIREBASE_URL + "seeking_partner/");
+        waitingListArray = new FirebaseArray(waitingListRef);
         chatsRef = new Firebase(FIREBASE_URL + "chats/");
     }
 
-    private String getPartnerFromWaitingList() {
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        AtomicReference<String> partnerUidAtomicRef = new AtomicReference<>();
+    private void getPartnerFromWaitingList(Consumer<String> callback) {
+        for (DataSnapshot snapshot : waitingListArray) {
+            if (!snapshot.getKey().equals(auth.getUid())) {
+                callback.accept(snapshot.getKey());
+                return;
+            }
+        }
 
-        GetPartnerFromWaitingListEventListener listener = new GetPartnerFromWaitingListEventListener((partnerId, toRemove) -> {
-            waitingListRef.removeEventListener(toRemove);
-            partnerUidAtomicRef.set(partnerId);
-
-            countDownLatch.countDown();
+        waitingListArray.setAddedListener((added) -> {
+            if (!added.getKey().equals(auth.getUid())) {
+                waitingListArray.setAddedListener(null); //remove listener
+                callback.accept(added.getKey());
+            }
+            return null;
         });
-
-        waitingListRef.addChildEventListener(listener);
-
-        awaitLatchResolution(countDownLatch);
-        return partnerUidAtomicRef.get();
     }
 
     private Firebase pushNewChatToFirebase() {
@@ -76,23 +100,44 @@ public class FirebaseDataConnection implements DataConnection {
         return newChatRef;
     }
 
-    private void listenForPartnerJoiningChat(Firebase chatRef) {
+    private void waitForPartnerJoiningChat(Firebase chatRef) {
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+
         Firebase partnersRef = chatRef.child("partners");
 
-        partnersRef.addChildEventListener(new PartnerJoiningChatListener((partnerUid, toRemove) -> {
+        PartnerJoiningChatListener joiningChatListener = new PartnerJoiningChatListener((partnerUid, toRemove) -> {
             if (!partnerUid.equals(auth.getUid())) {
 
-                chatStartedListeners.pop().onPartnerFound(new FirebaseConversationManager(chatRef));
-
                 partnersRef.removeEventListener(toRemove);
+
+                countDownLatch.countDown();
             }
-        }));
+        });
+
+        partnersRef.addChildEventListener(joiningChatListener);
+
+        awaitLatchResolution(countDownLatch);
     }
 
-    private void giveChatIdToPartner(String chatId, String partnerId) {
+    private void giveChatIdToPartner(String chatId, String partnerId, Function<Void, Void> onFail) {
         Firebase waitingListEntryRef = waitingListRef.child(partnerId);
 
-        waitingListEntryRef.setValue(chatId);
+        waitingListEntryRef.setValue(chatId, (firebaseError, firebase) -> {
+            if (firebaseError != null) {
+                onFail.apply(null);
+            }
+        });
+    }
+
+    private void restartLookingForPartner(Firebase chatRef) {
+        springPartnerListener(chatRef.child("partners"));
+        chatRef.removeValue();
+
+        getPartnerFromWaitingList(this::startChatAsync);
+    }
+
+    private void springPartnerListener(Firebase partnersRef) {
+        partnersRef.push().setValue(new ChatPartner());
     }
 
     private Chat initializeNewChat() {
@@ -104,6 +149,14 @@ public class FirebaseDataConnection implements DataConnection {
     private void awaitLatchResolution(CountDownLatch countDownLatch) {
         try {
             countDownLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void waitHalfASecond() {
+        try {
+            Thread.sleep(500);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
