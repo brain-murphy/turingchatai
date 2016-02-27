@@ -8,4 +8,6 @@ public interface ConversationManager {
     void sendMessage(String message);
 
     void listenForMessages(MessageListener listener);
+
+    void addOnChatEndedListener(ChatEndedListener listener);
 }

@@ -1,10 +1,5 @@
 package chatbot;
 
-import java.io.BufferedWriter;
-import java.net.ServerSocket;
-import java.util.Hashtable;
-import java.util.Random;
-
 public class ChatBotManager 
 {
 	
@@ -19,7 +14,7 @@ public class ChatBotManager
 	{
 		for(int created=0; created<numberBots; created++)
 		{
-			ChatBot newChatBot=new ChatBot(startPort+created);
+			ChatBot newChatBot = new ChatBot(startPort+created);
 			new Thread(newChatBot).run();
 		}
 	}

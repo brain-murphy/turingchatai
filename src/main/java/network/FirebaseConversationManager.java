@@ -14,11 +14,14 @@ public class FirebaseConversationManager implements ConversationManager {
     private Firebase messagesRef;
     private MessageListener messageListener;
 
+    int messageCount;
+
     public FirebaseConversationManager(Firebase pChatRef) {
         chatRef = pChatRef;
         messagesRef = chatRef.child("messages");
 
         myUid = messagesRef.getAuth().getUid();
+
     }
 
     @Override
@@ -32,6 +35,11 @@ public class FirebaseConversationManager implements ConversationManager {
     public void listenForMessages(MessageListener listener) {
         messageListener = listener;
         setFirebaseListener();
+    }
+
+    @Override
+    public void addOnChatEndedListener(ChatEndedListener listener) {
+        throw new UnsupportedOperationException();
     }
 
     private void forwardPartnerMessageToListener(Message message) {
