@@ -1,6 +1,7 @@
 package chatbot;
 
 import network.*;
+import network.interfaces.*;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -104,41 +105,29 @@ public class ChatBot implements Runnable
 		}
 	}
 
-	@Override
-	public void run()
-	{
-		connection.lookForPartner((conversation -> {
+	ChatStartedListener getChatStartedListener() {
+		return (conversation -> {
+
 			conversation.listenForMessages((message, pConversation) -> {
 				try {
 					pConversation.sendMessage(getResponse(message));
 				} catch (IOException e) {
 					e.printStackTrace();
 				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+                    e.printStackTrace();
+                }
+            });
+
+			conversation.addOnChatEndedListener(() -> {
+				connection.lookForPartner(getChatStartedListener());
 			});
-		}));
-//		try
-//		{
-//			ServerSocket socket=new ServerSocket(portNumber);
-//			socket.setSoTimeout(0);
-//			Socket clientSocket=socket.accept();
-//			BufferedReader in=new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-//			PrintWriter out=new PrintWriter(clientSocket.getOutputStream());
-//			while(socket.isBound())
-//			{
-//				String query=in.readLine();
-//				String response=getResponse(query);
-//				out.println(response);
-//				Thread.sleep(50);
-//			}
-//			chatBotProcess.destroy(); //clean up created process
-//		}
-//		catch (IOException | InterruptedException e)
-//		{
-//			e.printStackTrace();
-//		}
-//
+		});
+	}
+
+	@Override
+	public void run()
+	{
+		connection.lookForPartner(getChatStartedListener());
 	}
 
 	private String getResponse(String query) throws IOException, InterruptedException
@@ -150,7 +139,7 @@ public class ChatBot implements Runnable
 
 		responseTime();
 
-		String response="";
+		String response = "";
 		while (stdInput.ready())
 		{
 			response+=(char)stdInput.read();
