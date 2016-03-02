@@ -9,13 +9,37 @@ import java.net.*;
  */
 public class Demo {
 
+    private DataConnection connection;
+
     public static void main(String[] args) {
-        new Demo().demoFirebase();
+        new Demo().demoEnding();
     }
 
     private Socket willieSocket;
 
-    public void demoFirebase() {
+    public void demoEnding() {
+        connection = new FirebaseDataConnection();
+
+        connection.lookForPartner(getChatStartedListener());
+    }
+
+    ChatStartedListener getChatStartedListener() {
+        return (conversation -> {
+
+            conversation.listenForMessages(this::simpleReply);
+
+            conversation.addOnChatEndedListener(() -> {
+                connection.lookForPartner(getChatStartedListener());
+            });
+        });
+    }
+
+    private void simpleReply(String message, ConversationManager conversationManager) {
+        conversationManager.sendMessage("I am not a robot");
+    }
+
+
+    public void socketDemo() {
         try {
             willieSocket = new Socket(InetAddress.getByName("143.215.62.198"), 28250);
         } catch (IOException e) {
@@ -30,12 +54,12 @@ public class Demo {
             // this callback is invoked when a conversation starts
 
             // set a callback that will listen for messages
-            conversationManager.listenForMessages(this::reply);
+            conversationManager.listenForMessages(this::socketReply);
 
         });
     }
 
-    public void reply(String messageRecieved, ConversationManager conversationManager) {
+    public void socketReply(String messageRecieved, ConversationManager conversationManager) {
 
         BufferedReader in = null;
 

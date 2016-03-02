@@ -9,19 +9,23 @@ import network.model.*;
  */
 public class FirebaseConversationManager implements ConversationManager {
 
+    public static final int MAX_MESSAGES = 12;
     private String myUid;
     private Firebase chatRef;
     private Firebase messagesRef;
+    private Firebase partnerLeftRef;
     private MessageListener messageListener;
-
-    int messageCount;
+    private ChatEndedListener chatEndedListener;
+    private int messageCount;
 
     public FirebaseConversationManager(Firebase pChatRef) {
         chatRef = pChatRef;
         messagesRef = chatRef.child("messages");
+        partnerLeftRef = chatRef.child("someone_left");
 
         myUid = messagesRef.getAuth().getUid();
 
+        messageCount = 0;
     }
 
     @Override
@@ -34,12 +38,13 @@ public class FirebaseConversationManager implements ConversationManager {
     @Override
     public void listenForMessages(MessageListener listener) {
         messageListener = listener;
-        setFirebaseListener();
+        setFirebaseMessageListener();
     }
 
     @Override
     public void addOnChatEndedListener(ChatEndedListener listener) {
-        throw new UnsupportedOperationException();
+        chatEndedListener = listener;
+        setPartnerLeftListener();
     }
 
     private void forwardPartnerMessageToListener(Message message) {
@@ -48,11 +53,14 @@ public class FirebaseConversationManager implements ConversationManager {
         }
     }
 
-    private void setFirebaseListener() {
+    private void setFirebaseMessageListener() {
         messagesRef.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String pastChildKey) {
                 forwardPartnerMessageToListener(dataSnapshot.getValue(Message.class));
+
+                messageCount++;
+                checkMessageLimit();
             }
 
             @Override
@@ -68,6 +76,28 @@ public class FirebaseConversationManager implements ConversationManager {
             @Override
             public void onChildMoved(DataSnapshot dataSnapshot, String s) {
 
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
+    }
+
+    private void checkMessageLimit() {
+        if (messageCount >= MAX_MESSAGES) {
+            chatEndedListener.onChatEnded();
+        }
+    }
+
+    private void setPartnerLeftListener() {
+        partnerLeftRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.getValue() != null && dataSnapshot.getValue(Boolean.class)) {
+                    chatEndedListener.onChatEnded();
+                }
             }
 
             @Override
